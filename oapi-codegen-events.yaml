@@ -1,0 +1,6 @@
+package: eventsv1http
+output: gen/http/events/v1/events.gen.go
+generate:
+  models: true
+  strict-server: true
+  std-http-server: true

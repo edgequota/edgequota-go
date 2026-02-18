@@ -1,0 +1,15 @@
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/edgequota/edgequota-go/gen/grpc
+plugins:
+  - remote: buf.build/protocolbuffers/go
+    out: gen/grpc
+    opt: paths=source_relative
+  - remote: buf.build/grpc/go
+    out: gen/grpc
+    opt: paths=source_relative
+inputs:
+  - module: buf.build/edgequota/edgequota

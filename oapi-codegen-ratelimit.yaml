@@ -1,0 +1,6 @@
+package: ratelimitv1http
+output: gen/http/ratelimit/v1/ratelimit.gen.go
+generate:
+  models: true
+  strict-server: true
+  std-http-server: true

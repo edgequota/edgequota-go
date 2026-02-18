@@ -1,0 +1,6 @@
+package: authv1http
+output: gen/http/auth/v1/auth.gen.go
+generate:
+  models: true
+  strict-server: true
+  std-http-server: true
