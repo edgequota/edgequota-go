@@ -16,10 +16,18 @@ import (
 
 // Defines values for FailurePolicy.
 const (
-	Empty            FailurePolicy = ""
-	Failclosed       FailurePolicy = "failclosed"
-	InmemoryFallback FailurePolicy = "inmemory_fallback"
-	Passthrough      FailurePolicy = "passthrough"
+	FailurePolicyEmpty            FailurePolicy = ""
+	FailurePolicyFailclosed       FailurePolicy = "failclosed"
+	FailurePolicyInmemoryFallback FailurePolicy = "inmemory_fallback"
+	FailurePolicyPassthrough      FailurePolicy = "passthrough"
+)
+
+// Defines values for GetLimitsResponseBackendProtocol.
+const (
+	GetLimitsResponseBackendProtocolEmpty GetLimitsResponseBackendProtocol = ""
+	GetLimitsResponseBackendProtocolH1    GetLimitsResponseBackendProtocol = "h1"
+	GetLimitsResponseBackendProtocolH2    GetLimitsResponseBackendProtocol = "h2"
+	GetLimitsResponseBackendProtocolH3    GetLimitsResponseBackendProtocol = "h3"
 )
 
 // FailurePolicy Controls EdgeQuota's behaviour when Redis is unavailable.
@@ -46,6 +54,12 @@ type GetLimitsRequest struct {
 type GetLimitsResponse struct {
 	// Average Maximum number of requests per period (0 = unlimited).
 	Average int64 `json:"average"`
+
+	// BackendProtocol Backend protocol override (optional). Controls the outbound protocol
+	// EdgeQuota uses to reach the backend for this request.
+	// Values: "" (use static config), "h1", "h2", "h3".
+	// gRPC traffic always uses h2 regardless of this setting.
+	BackendProtocol *GetLimitsResponseBackendProtocol `json:"backend_protocol,omitempty"`
 
 	// BackendUrl Backend URL override (optional). When non-empty, EdgeQuota proxies
 	// this request to the given URL instead of the static backend.url.
@@ -81,6 +95,12 @@ type GetLimitsResponse struct {
 	// EdgeQuota uses this as the rate-limit key instead of the extracted key.
 	TenantKey *string `json:"tenant_key,omitempty"`
 }
+
+// GetLimitsResponseBackendProtocol Backend protocol override (optional). Controls the outbound protocol
+// EdgeQuota uses to reach the backend for this request.
+// Values: "" (use static config), "h1", "h2", "h3".
+// gRPC traffic always uses h2 regardless of this setting.
+type GetLimitsResponseBackendProtocol string
 
 // GetLimitsJSONRequestBody defines body for GetLimits for application/json ContentType.
 type GetLimitsJSONRequestBody = GetLimitsRequest
