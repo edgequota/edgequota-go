@@ -41,10 +41,10 @@ func WithNoStore(resp rlv1http.GetLimitsResponse) rlv1http.GetLimitsResponse {
 }
 
 // WithBackendProtocol returns a copy of the response with a per-request
-// backend protocol override. Valid values: "h1", "h2", "h3".
+// backend protocol override. Use the BackendProtocol constants from the
+// generated package (e.g. rlv1http.BackendProtocolH1).
 // gRPC traffic always uses h2 regardless of this setting.
-func WithBackendProtocol(resp rlv1http.GetLimitsResponse, proto string) rlv1http.GetLimitsResponse {
-	p := rlv1http.GetLimitsResponseBackendProtocol(proto)
-	resp.BackendProtocol = &p
+func WithBackendProtocol(resp rlv1http.GetLimitsResponse, proto rlv1http.BackendProtocol) rlv1http.GetLimitsResponse {
+	resp.BackendProtocol = &proto
 	return resp
 }

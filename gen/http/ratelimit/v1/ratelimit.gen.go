@@ -22,12 +22,12 @@ const (
 	FailurePolicyPassthrough      FailurePolicy = "passthrough"
 )
 
-// Defines values for GetLimitsResponseBackendProtocol.
+// Defines values for BackendProtocol.
 const (
-	GetLimitsResponseBackendProtocolEmpty GetLimitsResponseBackendProtocol = ""
-	GetLimitsResponseBackendProtocolH1    GetLimitsResponseBackendProtocol = "h1"
-	GetLimitsResponseBackendProtocolH2    GetLimitsResponseBackendProtocol = "h2"
-	GetLimitsResponseBackendProtocolH3    GetLimitsResponseBackendProtocol = "h3"
+	BackendProtocolEmpty BackendProtocol = ""
+	BackendProtocolH1    BackendProtocol = "h1"
+	BackendProtocolH2    BackendProtocol = "h2"
+	BackendProtocolH3    BackendProtocol = "h3"
 )
 
 // FailurePolicy Controls EdgeQuota's behaviour when Redis is unavailable.
@@ -59,7 +59,7 @@ type GetLimitsResponse struct {
 	// EdgeQuota uses to reach the backend for this request.
 	// Values: "" (use static config), "h1", "h2", "h3".
 	// gRPC traffic always uses h2 regardless of this setting.
-	BackendProtocol *GetLimitsResponseBackendProtocol `json:"backend_protocol,omitempty"`
+	BackendProtocol *BackendProtocol `json:"backend_protocol,omitempty"`
 
 	// BackendUrl Backend URL override (optional). When non-empty, EdgeQuota proxies
 	// this request to the given URL instead of the static backend.url.
@@ -96,11 +96,10 @@ type GetLimitsResponse struct {
 	TenantKey *string `json:"tenant_key,omitempty"`
 }
 
-// GetLimitsResponseBackendProtocol Backend protocol override (optional). Controls the outbound protocol
-// EdgeQuota uses to reach the backend for this request.
-// Values: "" (use static config), "h1", "h2", "h3".
+// BackendProtocol Selects the outbound protocol EdgeQuota uses to reach the backend.
+// An empty string means "use the static config".
 // gRPC traffic always uses h2 regardless of this setting.
-type GetLimitsResponseBackendProtocol string
+type BackendProtocol string
 
 // GetLimitsJSONRequestBody defines body for GetLimits for application/json ContentType.
 type GetLimitsJSONRequestBody = GetLimitsRequest
