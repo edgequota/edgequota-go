@@ -14,14 +14,6 @@ import (
 	strictnethttp "github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
 )
 
-// Defines values for FailurePolicy.
-const (
-	FailurePolicyEmpty            FailurePolicy = ""
-	FailurePolicyFailclosed       FailurePolicy = "failclosed"
-	FailurePolicyInmemoryFallback FailurePolicy = "inmemory_fallback"
-	FailurePolicyPassthrough      FailurePolicy = "passthrough"
-)
-
 // Defines values for BackendProtocol.
 const (
 	BackendProtocolEmpty BackendProtocol = ""
@@ -30,18 +22,30 @@ const (
 	BackendProtocolH3    BackendProtocol = "h3"
 )
 
+// Defines values for FailurePolicy.
+const (
+	FailurePolicyEmpty            FailurePolicy = ""
+	FailurePolicyFailclosed       FailurePolicy = "failclosed"
+	FailurePolicyInmemoryFallback FailurePolicy = "inmemory_fallback"
+	FailurePolicyPassthrough      FailurePolicy = "passthrough"
+)
+
+// BackendProtocol Selects the outbound protocol EdgeQuota uses to reach the backend.
+// An empty string means "use the static config".
+// gRPC traffic always uses h2 regardless of this setting.
+type BackendProtocol string
+
 // FailurePolicy Controls EdgeQuota's behaviour when Redis is unavailable.
 // The external rate-limit service can override the static config on a
 // per-request basis by returning one of these values.
 type FailurePolicy string
 
-// GetLimitsRequest Identifies the client and context for limit lookup.
+// GetLimitsRequest Identifies the client and context for limit lookup. The external service
+// derives the tenant/bucket key from headers, method, and path — EdgeQuota
+// does not send a pre-extracted key.
 type GetLimitsRequest struct {
 	// Headers Flattened request headers for context.
 	Headers map[string]string `json:"headers"`
-
-	// Key Rate limit bucket key (e.g. tenant ID, client IP).
-	Key string `json:"key"`
 
 	// Method HTTP method.
 	Method string `json:"method"`
@@ -55,15 +59,16 @@ type GetLimitsResponse struct {
 	// Average Maximum number of requests per period (0 = unlimited).
 	Average int64 `json:"average"`
 
-	// BackendProtocol Backend protocol override (optional). Controls the outbound protocol
-	// EdgeQuota uses to reach the backend for this request.
-	// Values: "" (use static config), "h1", "h2", "h3".
+	// BackendProtocol Selects the outbound protocol EdgeQuota uses to reach the backend.
+	// An empty string means "use the static config".
 	// gRPC traffic always uses h2 regardless of this setting.
 	BackendProtocol *BackendProtocol `json:"backend_protocol,omitempty"`
 
-	// BackendUrl Backend URL override (optional). When non-empty, EdgeQuota proxies
-	// this request to the given URL instead of the static backend.url.
-	BackendUrl *string `json:"backend_url,omitempty"`
+	// BackendUrl Backend URL (required). EdgeQuota proxies this request to the given
+	// URL. When external RL is active, the service must always return this
+	// field. Responses with an empty backend_url are treated as malformed
+	// and trigger the fallback path.
+	BackendUrl string `json:"backend_url"`
 
 	// Burst Maximum burst size.
 	Burst int64 `json:"burst"`
@@ -95,11 +100,6 @@ type GetLimitsResponse struct {
 	// EdgeQuota uses this as the rate-limit key instead of the extracted key.
 	TenantKey *string `json:"tenant_key,omitempty"`
 }
-
-// BackendProtocol Selects the outbound protocol EdgeQuota uses to reach the backend.
-// An empty string means "use the static config".
-// gRPC traffic always uses h2 regardless of this setting.
-type BackendProtocol string
 
 // GetLimitsJSONRequestBody defines body for GetLimits for application/json ContentType.
 type GetLimitsJSONRequestBody = GetLimitsRequest
