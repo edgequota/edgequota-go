@@ -1,6 +1,7 @@
 .PHONY: all generate generate-grpc generate-http build test lint clean
 
-OPENAPI_BASE ?= https://raw.githubusercontent.com/edgequota/edgequota/refs/heads/main/api/openapi
+# TODO: revert to remote URL after OpenAPI changes are published
+OPENAPI_BASE ?= ../edgequota/api/openapi
 
 all: generate build test
 
@@ -15,6 +16,7 @@ generate-http:
 	oapi-codegen --config oapi-codegen-auth.yaml $(OPENAPI_BASE)/auth/v1/auth.yaml
 	oapi-codegen --config oapi-codegen-ratelimit.yaml $(OPENAPI_BASE)/ratelimit/v1/ratelimit.yaml
 	oapi-codegen --config oapi-codegen-events.yaml $(OPENAPI_BASE)/events/v1/events.yaml
+	oapi-codegen --config oapi-codegen-admin.yaml $(OPENAPI_BASE)/admin/v1/admin.yaml
 
 # ── Build ────────────────────────────────────────────────────────────
 

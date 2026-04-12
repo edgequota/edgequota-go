@@ -1,109 +1,101 @@
-// Package cache provides a client for EdgeQuota's admin cache purge API.
+// Package cache provides SDK helpers for EdgeQuota's admin cache purge API.
 //
 // Usage:
 //
-//	c := cache.NewClient("http://edgequota-admin:9090")
+//	c, _ := cache.NewClient("http://edgequota-admin:9090")
+//
+//	// Purge response cache entries by surrogate-key tags:
 //	_ = c.PurgeTags(ctx, "menu-demo", "published-menus")
+//
+//	// Purge a single cached response by URL:
 //	_ = c.PurgeURL(ctx, "/v1/images/tenant/shoro/image/01KNJ7182C90DH3K1KT1VB3HZB")
+//
+//	// Purge auth cache entries by tags:
+//	_ = c.PurgeAuthTags(ctx, "table-t123")
 package cache
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
+
+	admin "github.com/edgequota/edgequota-go/gen/http/admin/v1"
 )
 
-// Client calls the EdgeQuota admin API to invalidate cached responses.
+// Client wraps the generated admin API client with convenience methods.
 type Client struct {
-	baseURL    string
-	httpClient *http.Client
+	inner *admin.ClientWithResponses
 }
 
 // Option configures a Client.
-type Option func(*Client)
+type Option func(*options)
+
+type options struct {
+	httpClient *http.Client
+}
 
 // WithHTTPClient sets a custom http.Client for requests.
 func WithHTTPClient(c *http.Client) Option {
-	return func(cl *Client) { cl.httpClient = c }
+	return func(o *options) { o.httpClient = c }
 }
 
 // NewClient creates a cache purge client targeting the EdgeQuota admin API.
 // adminURL is the base URL of the admin server (e.g. "http://edgequota-admin:9090").
-func NewClient(adminURL string, opts ...Option) *Client {
-	c := &Client{
-		baseURL: strings.TrimRight(adminURL, "/"),
-		httpClient: &http.Client{
-			Timeout: 5 * time.Second,
-		},
+func NewClient(adminURL string, opts ...Option) (*Client, error) {
+	o := &options{
+		httpClient: &http.Client{Timeout: 5 * time.Second},
 	}
-	for _, o := range opts {
-		o(c)
+	for _, opt := range opts {
+		opt(o)
 	}
-	return c
+	inner, err := admin.NewClientWithResponses(adminURL, admin.WithHTTPClient(o.httpClient))
+	if err != nil {
+		return nil, fmt.Errorf("edgequota cache: create client: %w", err)
+	}
+	return &Client{inner: inner}, nil
 }
 
-// PurgeTags invalidates all cached responses tagged with any of the given
-// surrogate-key tags. Tags correspond to Surrogate-Key / Cache-Tag header
-// values that backends emit (e.g. "menu-demo", "tenant-shoro").
+// PurgeTags invalidates all cached HTTP responses tagged with any of the given
+// surrogate-key tags.
 func (c *Client) PurgeTags(ctx context.Context, tags ...string) error {
-	body, err := json.Marshal(purgeTagsRequest{Tags: tags})
-	if err != nil {
-		return fmt.Errorf("edgequota cache: marshal: %w", err)
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/v1/cache/purge/tags", bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("edgequota cache: new request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.inner.PurgeResponseCacheTagsWithResponse(ctx, admin.PurgeTagsRequest{Tags: tags})
 	if err != nil {
 		return fmt.Errorf("edgequota cache: purge tags: %w", err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("edgequota cache: purge tags: unexpected status %d", resp.StatusCode)
+	if resp.StatusCode() != http.StatusNoContent {
+		return fmt.Errorf("edgequota cache: purge tags: unexpected status %d", resp.StatusCode())
 	}
 	return nil
 }
 
-// PurgeURL invalidates a single cached GET response by URL path (including
-// query string). For example: "/v1/menus/menu-demo/published".
-func (c *Client) PurgeURL(ctx context.Context, url string) error {
-	return c.PurgeURLWithMethod(ctx, http.MethodGet, url)
+// PurgeURL invalidates a single cached GET response by URL path.
+func (c *Client) PurgeURL(ctx context.Context, urlPath string) error {
+	return c.PurgeURLWithMethod(ctx, http.MethodGet, urlPath)
 }
 
-// PurgeURLWithMethod invalidates a single cached response by HTTP method
-// and URL path.
-func (c *Client) PurgeURLWithMethod(ctx context.Context, method, url string) error {
-	body, err := json.Marshal(purgeRequest{URL: url, Method: method})
-	if err != nil {
-		return fmt.Errorf("edgequota cache: marshal: %w", err)
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/v1/cache/purge", bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("edgequota cache: new request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.httpClient.Do(req)
+// PurgeURLWithMethod invalidates a single cached response by HTTP method and URL path.
+func (c *Client) PurgeURLWithMethod(ctx context.Context, method, urlPath string) error {
+	resp, err := c.inner.PurgeResponseCacheURLWithResponse(ctx, admin.PurgeURLRequest{Url: urlPath, Method: &method})
 	if err != nil {
 		return fmt.Errorf("edgequota cache: purge url: %w", err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusNotFound {
-		return fmt.Errorf("edgequota cache: purge url: unexpected status %d", resp.StatusCode)
+	if resp.StatusCode() != http.StatusNoContent && resp.StatusCode() != http.StatusNotFound {
+		return fmt.Errorf("edgequota cache: purge url: unexpected status %d", resp.StatusCode())
 	}
 	return nil
 }
 
-type purgeRequest struct {
-	URL    string `json:"url"`
-	Method string `json:"method"`
-}
-
-type purgeTagsRequest struct {
-	Tags []string `json:"tags"`
+// PurgeAuthTags invalidates all cached auth decisions tagged with any of the
+// given tags. Tags correspond to cache_tags values returned by the auth service
+// in CheckResponse.
+func (c *Client) PurgeAuthTags(ctx context.Context, tags ...string) error {
+	resp, err := c.inner.PurgeAuthCacheTagsWithResponse(ctx, admin.PurgeTagsRequest{Tags: tags})
+	if err != nil {
+		return fmt.Errorf("edgequota cache: purge auth tags: %w", err)
+	}
+	if resp.StatusCode() != http.StatusNoContent {
+		return fmt.Errorf("edgequota cache: purge auth tags: unexpected status %d", resp.StatusCode())
+	}
+	return nil
 }
